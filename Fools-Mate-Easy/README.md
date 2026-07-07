@@ -74,7 +74,7 @@ Opening the website revealed a chess puzzle named **Endgame Trainer**.
 
 Inspecting the JavaScript source revealed the following code:
 
-```javascript
+```JavaScript
 if (probe.isCheckmate()) {
     showSystemNotice("I'll shut down your PC if you play that.");
     return false;
@@ -91,7 +91,7 @@ This immediately suggested that:
 
 ### Application Screenshot
 
-![Chess Application](images/chess.png)
+![Endgame Trainer](images/Application.png)
 
 ---
 
