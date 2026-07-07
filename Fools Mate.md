@@ -1,99 +1,175 @@
-🧠 TryHackMe Write-up: Endgame Trainer (Fool’s Mate)
-📌 Overview
+# ♟️ TryHackMe - Fool's Mate Write-up
 
-This write-up documents the exploitation of the Fool’s Mate / Endgame Trainer challenge from TryHackMe.
+> **Room:** Fool's Mate  
+> **Platform:** TryHackMe  
+> **Difficulty:** Easy  
+> **Category:** Web Exploitation | Client-Side Security
 
-The room demonstrates a critical security flaw: client-side game logic validation, where game rules are enforced in JavaScript instead of the server. This allows an attacker to bypass restrictions and send crafted requests directly to the backend.
+---
 
-🎯 Objective
-Perform reconnaissance on exposed services
-Analyze client-side JavaScript logic
-Identify flawed security controls
-Exploit server-side API directly
-Capture the hidden flag
-🔍 Reconnaissance
+## 📖 Overview
 
-An initial Nmap scan was performed against the target host:
+This room demonstrates the dangers of relying on **client-side validation** for application security.
 
+The web application is a chess endgame trainer that prevents the player from making a checkmate move through JavaScript. However, because the validation only exists in the browser, it can be bypassed by sending requests directly to the backend API.
+
+---
+
+## 🎯 Objectives
+
+- Perform reconnaissance on the target
+- Enumerate the web application
+- Analyze the client-side JavaScript
+- Identify the security flaw
+- Bypass the frontend validation
+- Capture the flag
+
+---
+
+# 🔍 Reconnaissance
+
+I began by scanning the target using **Nmap**.
+
+```bash
 nmap -sC -sV -A <target-ip>
-Results:
-Port 22/tcp → SSH (OpenSSH 9.6p1 Ubuntu)
-Port 80/tcp → HTTP (Node.js Express framework)
+```
 
-The web service hosted an application called:
+### Results
 
-Endgame Trainer
+```
+22/tcp open  ssh   OpenSSH 9.6p1 Ubuntu
+80/tcp open  http  Node.js Express Framework
+```
 
-🌐 Web Enumeration
+The scan revealed:
 
-To further analyze the web application, a technology fingerprinting scan was performed:
+- SSH running on port **22**
+- A **Node.js Express** web application running on port **80**
 
+### Nmap Output
+
+![Nmap Scan](images/nmap.png)
+
+---
+
+# 🌐 Web Enumeration
+
+Next, I fingerprinted the web application.
+
+```bash
 whatweb http://<target-ip>
-Findings:
-Node.js Express backend
-JavaScript-heavy frontend
-Chess-based interactive game interface
-🧩 Client-Side Analysis
+```
 
-Upon inspecting the browser-based game, the logic for move validation was implemented in JavaScript:
+The scan identified the application as running on:
 
+- Node.js
+- Express
+- JavaScript frontend
+
+Opening the website revealed a chess puzzle named **Endgame Trainer**.
+
+---
+
+# 🔎 Source Code Analysis
+
+Inspecting the JavaScript source revealed the following code:
+
+```javascript
 if (probe.isCheckmate()) {
     showSystemNotice("I'll shut down your PC if you play that.");
     return false;
 }
-Key Observation:
-The checkmate validation occurs only in the browser
-This means the server does not enforce game rules
-Client-side logic can be bypassed entirely
+```
 
-This is a classic security misconfiguration: trusting the client
+The application prevented the player from making a winning move by checking for checkmate **inside the browser**.
 
-💥 Exploitation
+This immediately suggested that:
 
-Since the backend accepts requests independently of the frontend validation, it is possible to bypass the UI entirely and send direct HTTP requests.
+- The validation occurs only on the client.
+- The backend likely trusts whatever move is submitted.
+- Sending requests directly to the server should bypass the restriction.
 
-Using curl, a crafted move was sent directly to the API:
+### Application Screenshot
 
+![Chess Application](images/chess.png)
+
+---
+
+# ⚡ Exploitation
+
+Since the browser was blocking the move—not the server—I bypassed the frontend entirely by sending my own request.
+
+The winning move was moving the rook from **a1** to **a8**.
+
+Example request:
+
+```bash
 curl -X POST http://<target-ip>/move \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from": "a1",
-    "to": "a8"
+-H "Content-Type: application/json" \
+-d '{
+    "from":"a1",
+    "to":"a8"
 }'
+```
 
-This move forced a checkmate condition without triggering the frontend restriction.
+Because the backend performed no server-side validation, the move was accepted.
 
-🚩 Flag Capture
+---
 
-The server responded with a successful checkmate state:
+# 🚩 Flag
 
+The server responded with:
+
+```json
 {
-  "status": "checkmate",
-  "winner": "white",
-  "flag": "THM{cl13nt_s1d3_ch3ckm4t3}"
+    "status": "checkmate",
+    "winner": "white",
+    "flag": "THM{cl13nt_s1d3_ch3ckm4t3}"
 }
+```
 
-✔ Flag successfully retrieved.
+---
 
-🧠 Key Takeaways
-Never trust client-side validation for security decisions
-Frontend logic can always be modified or bypassed
-All critical rules must be enforced server-side
-API endpoints should validate state independently of UI
-🧾 Security Insight
+# 🧠 Lessons Learned
 
-This challenge highlights a common real-world vulnerability:
+This room demonstrates a common web security vulnerability:
 
-Client-Side Enforcement Weakness
+> **Never trust client-side validation.**
 
-Attackers can:
+JavaScript exists solely for improving the user experience and **must never be relied upon for enforcing security controls**.
 
-Intercept requests (Burp Suite/curl)
-Modify parameters
-Skip UI restrictions entirely
+An attacker can easily:
 
-Proper mitigation:
+- Disable JavaScript
+- Modify browser code
+- Intercept requests
+- Send requests directly with tools like:
+  - `curl`
+  - Burp Suite
+  - Postman
 
-Server-side validation of all game logic
-State verification before accepting moves
-Treat the frontend as an untrusted input source
+Security-sensitive validation should **always** occur on the server.
+
+---
+
+# 🛠️ Tools Used
+
+- Nmap
+- WhatWeb
+- Browser Developer Tools
+- curl
+
+---
+
+# 📚 Key Takeaways
+
+- Perform reconnaissance before interacting with an application.
+- Always inspect client-side JavaScript.
+- Client-side restrictions can often be bypassed.
+- Server-side validation is essential for application security.
+- Never trust data received from the client.
+---
+
+## Disclaimer
+
+This write-up is intended for educational purposes only as part of the **TryHackMe** platform. All actions were performed inside a legal, controlled lab environment.
